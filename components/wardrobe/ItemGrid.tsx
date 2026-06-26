@@ -42,6 +42,27 @@ export function ItemGrid({ items }: ItemGridProps) {
 
   return (
     <div>
+      <div className="flex gap-2 px-4 mb-2">
+        <button
+          onClick={() => { setActiveTab('type'); setFilter((p) => ({ ...p, type: undefined })) }}
+          className={cn(
+            'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+            activeTab === 'type' ? 'text-indigo-700 bg-indigo-50' : 'text-gray-400'
+          )}
+        >
+          By type
+        </button>
+        <button
+          onClick={() => { setActiveTab('occasion'); setFilter((p) => ({ ...p, occasion: undefined })) }}
+          className={cn(
+            'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+            activeTab === 'occasion' ? 'text-indigo-700 bg-indigo-50' : 'text-gray-400'
+          )}
+        >
+          By occasion
+        </button>
+      </div>
+
       <div className="flex gap-1.5 px-4 overflow-x-auto scrollbar-hide pb-1">
         {activeTab === 'type'
           ? TYPE_FILTERS.map((f) => (
@@ -60,27 +81,6 @@ export function ItemGrid({ items }: ItemGridProps) {
                 onClick={() => setFilter((prev) => ({ ...prev, occasion: f.value === 'all' ? undefined : f.value as WardrobeItem['occasion'] }))}
               />
             ))}
-      </div>
-
-      <div className="flex gap-2 px-4 mt-2">
-        <button
-          onClick={() => setActiveTab('type')}
-          className={cn(
-            'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
-            activeTab === 'type' ? 'text-slate-800 bg-slate-100' : 'text-gray-400'
-          )}
-        >
-          By type
-        </button>
-        <button
-          onClick={() => setActiveTab('occasion')}
-          className={cn(
-            'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
-            activeTab === 'occasion' ? 'text-slate-800 bg-slate-100' : 'text-gray-400'
-          )}
-        >
-          By occasion
-        </button>
       </div>
 
       {filtered.length === 0 ? (
@@ -113,8 +113,8 @@ function FilterChip({
       className={cn(
         'flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors',
         active
-          ? 'bg-slate-800 text-white border-slate-800'
-          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+          ? 'bg-indigo-700 text-white border-indigo-700'
+          : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
       )}
     >
       {label}

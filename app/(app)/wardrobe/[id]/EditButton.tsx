@@ -12,7 +12,7 @@ export function EditButton({ item }: { item: WardrobeItem }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-sm text-slate-600 font-medium hover:text-slate-800"
+        className="text-sm text-gray-500 font-medium hover:text-indigo-700"
       >
         Edit
       </button>

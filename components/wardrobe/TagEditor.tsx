@@ -8,7 +8,7 @@ import type { WardrobeItem } from '@/types'
 
 type EditableFields = Pick<
   WardrobeItem,
-  'name' | 'type' | 'ethnic_subtype' | 'color' | 'style' | 'occasion' | 'season' | 'notes'
+  'name' | 'type' | 'ethnic_subtype' | 'color' | 'style' | 'occasion' | 'season'
 >
 
 type TagEditorProps = {
@@ -26,7 +26,6 @@ export function TagEditor({ item, onClose }: TagEditorProps) {
     style: item.style,
     occasion: item.occasion,
     season: item.season,
-    notes: item.notes,
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -133,15 +132,6 @@ export function TagEditor({ item, onClose }: TagEditorProps) {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-      </Field>
-
-      <Field label="Styling note">
-        <textarea
-          value={fields.notes}
-          onChange={(e) => update('notes', e.target.value)}
-          rows={2}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
-        />
       </Field>
 
       {error && <p className="text-red-600 text-sm">{error}</p>}

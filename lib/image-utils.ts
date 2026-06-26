@@ -1,7 +1,28 @@
 const MAX_BYTES = 1_000_000 // 1 MB
 const MAX_DIMENSION = 1920
 
+function isHeic(file: File): boolean {
+  return (
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    file.name.toLowerCase().endsWith('.heic') ||
+    file.name.toLowerCase().endsWith('.heif')
+  )
+}
+
+async function convertHeicToJpeg(file: File): Promise<File> {
+  const heic2any = (await import('heic2any')).default
+  const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 }) as Blob
+  return new File([blob], file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), {
+    type: 'image/jpeg',
+  })
+}
+
 export async function resizeImageFile(file: File): Promise<File> {
+  if (isHeic(file)) {
+    file = await convertHeicToJpeg(file)
+  }
+
   if (file.size <= MAX_BYTES) return file
 
   return new Promise((resolve, reject) => {

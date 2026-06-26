@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { anthropic, MODEL, TAGGING_PROMPT } from '@/lib/anthropic'
+import { STORAGE_BUCKET, SIGNED_URL_TTL, MAX_UPLOAD_BYTES, ALLOWED_MIME_TYPES } from '@/lib/constants'
 import type { ClothingTag } from '@/types'
-
-const BUCKET = 'wardrobe-images'
-const SIGNED_URL_TTL = 3600
 
 const DEFAULT_TAG: ClothingTag = {
   name: 'Clothing item',
@@ -33,18 +31,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 })
     }
 
+    if (image.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 413 })
+    }
+
+    const mimeType = image.type || 'image/jpeg'
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+      return NextResponse.json({ error: 'Invalid file type' }, { status: 415 })
+    }
+
     const buffer = await image.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
-    const mediaType = (image.type as 'image/jpeg' | 'image/png' | 'image/webp') || 'image/jpeg'
-    const ext = image.type.includes('png') ? 'png' : 'jpg'
+    const mediaType = mimeType as 'image/jpeg' | 'image/png' | 'image/webp'
+    const ext = mimeType.includes('png') ? 'png' : 'jpg'
 
     const itemId = crypto.randomUUID()
     const storagePath = `${user.id}/${itemId}.${ext}`
 
     const admin = createAdminClient()
     const { error: storageError } = await admin.storage
-      .from(BUCKET)
-      .upload(storagePath, buffer, { contentType: image.type, upsert: false })
+      .from(STORAGE_BUCKET)
+      .upload(storagePath, buffer, { contentType: mimeType, upsert: false })
 
     if (storageError) {
       console.error('Storage error:', storageError)
@@ -60,10 +67,7 @@ export async function POST(request: NextRequest) {
           {
             role: 'user',
             content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaType, data: base64 },
-              },
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
               { type: 'text', text: TAGGING_PROMPT },
             ],
           },
@@ -72,8 +76,7 @@ export async function POST(request: NextRequest) {
 
       const raw = message.content[0].type === 'text' ? message.content[0].text : ''
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const parsed = JSON.parse(cleaned)
-      tag = { ...DEFAULT_TAG, ...parsed }
+      tag = { ...DEFAULT_TAG, ...JSON.parse(cleaned) }
     } catch (err) {
       console.error('Tagging error (using default):', err)
     }
@@ -100,12 +103,12 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error('DB error:', dbError)
-      await admin.storage.from(BUCKET).remove([storagePath])
+      await admin.storage.from(STORAGE_BUCKET).remove([storagePath])
       return NextResponse.json({ error: 'Save failed' }, { status: 500 })
     }
 
     const { data: signed } = await admin.storage
-      .from(BUCKET)
+      .from(STORAGE_BUCKET)
       .createSignedUrl(storagePath, SIGNED_URL_TTL)
 
     return NextResponse.json({ ...item, signed_url: signed?.signedUrl ?? '' }, { status: 201 })

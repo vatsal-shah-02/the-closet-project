@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { createClient } from '@/lib/supabase/client'
 
 export function DeleteButton({ itemId }: { itemId: string }) {
   const router = useRouter()
@@ -12,8 +11,7 @@ export function DeleteButton({ itemId }: { itemId: string }) {
 
   async function handleDelete() {
     setDeleting(true)
-    const supabase = createClient()
-    await supabase.from('wardrobe_items').delete().eq('id', itemId)
+    await fetch(`/api/wardrobe/${itemId}`, { method: 'DELETE' })
     router.push('/wardrobe')
     router.refresh()
   }

@@ -4,15 +4,15 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Closet',
   description: 'Your AI wardrobe stylist',
-  manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Closet' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Closet' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: '#4338ca',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

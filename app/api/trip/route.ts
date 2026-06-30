@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
       .join('\n')
 
     const tripContext = [
-      `Destination: ${destination}`,
+      `Destination: <destination>${destination}</destination>`,
       `Travel month: ${month || 'unspecified'}`,
       `Duration: ${days} day${days === 1 ? '' : 's'}`,
       tripType ? `Trip type: ${tripType}` : '',
-      activities ? `Specific activities: ${activities}` : '',
+      activities ? `Specific activities: <activities>${activities}</activities>` : '',
     ].filter(Boolean).join('\n')
 
     const message = await anthropic.messages.create({
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `${TRIP_PROMPT}\n\nTrip details:\n${tripContext}\n\nWardrobe:\n${itemList}`,
+          content: `${TRIP_PROMPT}\n\nTrip details:\n${tripContext}\n\n<wardrobe>\n${itemList}\n</wardrobe>`,
         },
       ],
     })

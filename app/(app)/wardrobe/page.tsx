@@ -67,7 +67,7 @@ export default async function WardrobePage({
   }
 
   return (
-    <div>
+    <div className="pb-24">
       <header className="px-4 pt-12 pb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Wardrobe</h1>
         <div className="flex items-center gap-3">

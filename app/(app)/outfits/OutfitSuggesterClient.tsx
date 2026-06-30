@@ -39,7 +39,6 @@ export function OutfitSuggesterClient({ items }: Props) {
     if (!occasion) return
     setLoading(true)
     setError('')
-    setOutfits(null)
 
     try {
       const res = await fetch('/api/outfits/suggest', {
@@ -108,15 +107,24 @@ export function OutfitSuggesterClient({ items }: Props) {
           </p>
         ) : (
           <div className="space-y-4 pb-4">
-            {outfits.map((outfit, i) => {
-              const outfitItems = outfit.items
-                .map((id) => itemMap.get(id))
-                .filter((item): item is WardrobeItem & { signed_url: string } => !!item)
+            {(() => {
+              const visibleOutfits = outfits.map((outfit) => {
+                const outfitItems = outfit.items
+                  .map((id) => itemMap.get(id))
+                  .filter((item): item is WardrobeItem & { signed_url: string } => !!item)
+                return { outfit, outfitItems }
+              }).filter(({ outfitItems }) => outfitItems.length > 0)
 
-              if (outfitItems.length === 0) return null
+              if (visibleOutfits.length === 0) {
+                return (
+                  <p className="text-center text-gray-400 text-sm py-4">
+                    Claude suggested items that are no longer in your wardrobe. Try again or add more items.
+                  </p>
+                )
+              }
 
-              return (
-                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              return visibleOutfits.map(({ outfit, outfitItems }) => (
+                <div key={outfit.title} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
                     {outfitItems.map((item) => (
                       <div
@@ -136,15 +144,20 @@ export function OutfitSuggesterClient({ items }: Props) {
                   <p className="font-semibold text-sm text-gray-900">{outfit.title}</p>
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">{outfit.note}</p>
                 </div>
-              )
-            })}
+              ))
+            })()}
 
             <button
               onClick={handleSuggest}
               disabled={loading}
               className="w-full py-3 rounded-xl font-medium text-sm border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 transition-colors disabled:opacity-40"
             >
-              {loading ? 'Regenerating…' : 'Try different outfits'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" />
+                  Regenerating…
+                </span>
+              ) : 'Try different outfits'}
             </button>
           </div>
         )

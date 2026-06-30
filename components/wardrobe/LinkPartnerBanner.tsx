@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-type State = 'idle' | 'loading' | 'generated'
+type State = 'idle' | 'loading' | 'generated' | 'error'
 
 export function LinkPartnerBanner() {
   const [state, setState] = useState<State>('idle')
@@ -11,13 +11,14 @@ export function LinkPartnerBanner() {
 
   async function handleGenerate() {
     setState('loading')
-    const res = await fetch('/api/partner/invite', { method: 'POST' })
-    const data = await res.json()
-    if (data.code) {
+    try {
+      const res = await fetch('/api/partner/invite', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.code) throw new Error(data.error ?? 'Failed to generate link')
       setLink(`${window.location.origin}/invite/${data.code}`)
       setState('generated')
-    } else {
-      setState('idle')
+    } catch {
+      setState('error')
     }
   }
 
@@ -27,17 +28,22 @@ export function LinkPartnerBanner() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (state === 'idle') {
+  if (state === 'idle' || state === 'error') {
     return (
-      <button
-        onClick={handleGenerate}
-        className="w-full flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl border border-indigo-100 group"
-      >
-        <span className="text-sm text-indigo-700 font-medium">Link with partner</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-indigo-400 group-hover:translate-x-0.5 transition-transform">
-          <path d="M5 12h14M12 5l7 7-7 7" />
-        </svg>
-      </button>
+      <div className="space-y-1.5">
+        <button
+          onClick={handleGenerate}
+          className="w-full flex items-center justify-between px-4 py-3 bg-indigo-50 rounded-xl border border-indigo-100 group"
+        >
+          <span className="text-sm text-indigo-700 font-medium">Link with partner</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-indigo-400 group-hover:translate-x-0.5 transition-transform">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+        {state === 'error' && (
+          <p className="text-xs text-red-500 px-1">Failed to generate link — tap to try again.</p>
+        )}
+      </div>
     )
   }
 

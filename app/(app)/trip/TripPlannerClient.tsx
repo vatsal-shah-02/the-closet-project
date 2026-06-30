@@ -204,6 +204,13 @@ export function TripPlannerClient({ items }: Props) {
             </div>
           )}
 
+          {/* Empty state — Claude returned IDs not in wardrobe */}
+          {plan.packs.every(({ id }) => !itemMap.get(id)) && plan.packs.length > 0 && (
+            <p className="text-center text-gray-400 text-sm py-4">
+              Plan generated but items weren&apos;t matched to your wardrobe. Try adding more items and planning again.
+            </p>
+          )}
+
           {/* What to pack */}
           {plan.packs.length > 0 && (
             <section>
@@ -241,13 +248,13 @@ export function TripPlannerClient({ items }: Props) {
                 Outfit ideas for the trip
               </h2>
               <div className="space-y-3">
-                {plan.outfits.map((outfit, i) => {
+                {plan.outfits.map((outfit) => {
                   const outfitItems = outfit.items
                     .map((id) => itemMap.get(id))
                     .filter((item): item is WardrobeItem & { signed_url: string } => !!item)
                   if (outfitItems.length === 0) return null
                   return (
-                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <div key={outfit.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                       <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
                         {outfitItems.map((item) => (
                           <div
@@ -289,6 +296,13 @@ export function TripPlannerClient({ items }: Props) {
               </div>
             </section>
           )}
+
+          <button
+            onClick={() => { setPlan(null); setDestination(''); setTripType(null); setActivities('') }}
+            className="w-full py-3 rounded-xl font-medium text-sm border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 transition-colors"
+          >
+            Plan again
+          </button>
         </div>
       )}
     </div>

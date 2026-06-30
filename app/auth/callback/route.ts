@@ -37,5 +37,7 @@ export async function GET(request: NextRequest) {
     name: data.user.user_metadata?.full_name ?? data.user.email?.split('@')[0] ?? 'User',
   }, { onConflict: 'id', ignoreDuplicates: true })
 
-  return NextResponse.redirect(`${origin}/wardrobe`)
+  const redirect = searchParams.get('redirect')
+  const destination = redirect?.startsWith('/') ? redirect : '/wardrobe'
+  return NextResponse.redirect(`${origin}${destination}`)
 }

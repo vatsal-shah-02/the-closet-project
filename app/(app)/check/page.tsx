@@ -46,7 +46,7 @@ export default async function CheckPage() {
   }
 
   return (
-    <div className="px-4 pt-12 pb-8">
+    <div className="px-4 pt-12 pb-24">
       <h1 className="text-xl font-semibold mb-1">Check outfit</h1>
       <p className="text-gray-400 text-sm mb-6">
         Upload an outfit photo or pick items from your wardrobe

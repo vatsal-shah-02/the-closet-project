@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `${SUGGEST_PROMPT}\n\nCurrent month: ${month || 'unknown'}\nOccasion: ${occasion}\n\nWardrobe:\n${itemList}`,
+          content: `${SUGGEST_PROMPT}\n\nCurrent month: ${month || 'unknown'}\n<occasion>${occasion}</occasion>\n\n<wardrobe>\n${itemList}\n</wardrobe>`,
         },
       ],
     })

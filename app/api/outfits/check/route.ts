@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { anthropic, MODEL, COMPATIBILITY_PROMPT, OUTFIT_REVIEW_PROMPT } from '@/lib/anthropic'
-import { STORAGE_BUCKET as BUCKET } from '@/lib/constants'
+import { STORAGE_BUCKET as BUCKET, MAX_UPLOAD_BYTES, ALLOWED_MIME_TYPES } from '@/lib/constants'
 
 type ImageInput = { base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }
 
@@ -15,8 +15,7 @@ async function imageFromFile(file: File): Promise<ImageInput> {
   return { base64, mediaType }
 }
 
-async function imageFromItemId(itemId: string, userId: string): Promise<ImageInput | null> {
-  const supabase = await createClient()
+async function imageFromItemId(itemId: string, userId: string, supabase: Awaited<ReturnType<typeof createClient>>): Promise<ImageInput | null> {
   const { data: item } = await supabase
     .from('wardrobe_items')
     .select('image_url')
@@ -26,12 +25,16 @@ async function imageFromItemId(itemId: string, userId: string): Promise<ImageInp
 
   if (!item) return null
 
+  const ext = item.image_url.split('.').pop()?.toLowerCase()
+  const mediaType: 'image/jpeg' | 'image/png' | 'image/webp' =
+    ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+
   const admin = createAdminClient()
   const { data: blob, error } = await admin.storage.from(BUCKET).download(item.image_url)
   if (error || !blob) return null
 
   const buffer = await blob.arrayBuffer()
-  return { base64: Buffer.from(buffer).toString('base64'), mediaType: 'image/jpeg' }
+  return { base64: Buffer.from(buffer).toString('base64'), mediaType }
 }
 
 const DEFAULT_RESULT = {
@@ -54,15 +57,21 @@ export async function POST(request: NextRequest) {
     const item1Id = form.get('item1Id') as string | null
     const item2Id = form.get('item2Id') as string | null
 
+    for (const file of [image1File, image2File]) {
+      if (!file) continue
+      if (file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 413 })
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) return NextResponse.json({ error: 'Invalid file type' }, { status: 415 })
+    }
+
     const images: ImageInput[] = []
 
     const src1 = image1File ? await imageFromFile(image1File)
-      : item1Id ? await imageFromItemId(item1Id, user.id)
+      : item1Id ? await imageFromItemId(item1Id, user.id, supabase)
       : null
     if (src1) images.push(src1)
 
     const src2 = image2File ? await imageFromFile(image2File)
-      : item2Id ? await imageFromItemId(item2Id, user.id)
+      : item2Id ? await imageFromItemId(item2Id, user.id, supabase)
       : null
     if (src2) images.push(src2)
 

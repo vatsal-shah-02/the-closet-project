@@ -36,7 +36,7 @@ export default async function ItemDetailPage({
   const signedUrl = signed?.signedUrl ?? ''
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-24">
       <header className="px-4 pt-12 pb-4 flex items-center gap-3">
         <Link href="/wardrobe" className="text-gray-400 hover:text-gray-600">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

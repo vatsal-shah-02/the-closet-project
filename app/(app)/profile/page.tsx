@@ -15,13 +15,17 @@ type PartnerState =
   | { status: 'none' }
   | { status: 'pending'; code: string }
   | { status: 'accepted'; partnerName: string }
+  | { status: 'error' }
 
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [partner, setPartner] = useState<PartnerState>({ status: 'loading' })
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState('')
   const [unlinkLoading, setUnlinkLoading] = useState(false)
+  const [unlinkError, setUnlinkError] = useState('')
+  const [signOutError, setSignOutError] = useState('')
   const [copied, setCopied] = useState(false)
   const [origin, setOrigin] = useState('')
 
@@ -29,28 +33,33 @@ export default function ProfilePage() {
     setOrigin(window.location.origin)
 
     async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', user.id)
-        .single()
+        const { data } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .single()
 
-      const name = data?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'You'
-      setProfile({ name, email: user.email ?? '', initial: name.charAt(0).toUpperCase() })
+        const name = data?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'You'
+        setProfile({ name, email: user.email ?? '', initial: name.charAt(0).toUpperCase() })
 
-      const res = await fetch('/api/partner')
-      const json = await res.json()
+        const res = await fetch('/api/partner')
+        if (!res.ok) throw new Error('Failed to load partner status')
+        const json = await res.json()
 
-      if (!json.link) {
-        setPartner({ status: 'none' })
-      } else if (json.link.status === 'accepted') {
-        setPartner({ status: 'accepted', partnerName: json.partnerName })
-      } else {
-        setPartner({ status: 'pending', code: json.link.invite_code })
+        if (!json.link) {
+          setPartner({ status: 'none' })
+        } else if (json.link.status === 'accepted') {
+          setPartner({ status: 'accepted', partnerName: json.partnerName })
+        } else {
+          setPartner({ status: 'pending', code: json.link.invite_code })
+        }
+      } catch {
+        setPartner({ status: 'error' })
       }
     }
     load()
@@ -58,18 +67,32 @@ export default function ProfilePage() {
 
   async function handleGenerateInvite() {
     setInviteLoading(true)
-    const res = await fetch('/api/partner/invite', { method: 'POST' })
-    const data = await res.json()
-    setInviteLoading(false)
-    if (data.code) setPartner({ status: 'pending', code: data.code })
+    setInviteError('')
+    try {
+      const res = await fetch('/api/partner/invite', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.code) throw new Error(data.error ?? 'Failed to generate link')
+      setPartner({ status: 'pending', code: data.code })
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setInviteLoading(false)
+    }
   }
 
   async function handleUnlink() {
     setUnlinkLoading(true)
-    await fetch('/api/partner', { method: 'DELETE' })
-    setUnlinkLoading(false)
-    setPartner({ status: 'none' })
-    router.refresh()
+    setUnlinkError('')
+    try {
+      const res = await fetch('/api/partner', { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to unlink')
+      setPartner({ status: 'none' })
+      router.refresh()
+    } catch (err) {
+      setUnlinkError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setUnlinkLoading(false)
+    }
   }
 
   function handleCopy(code: string) {
@@ -79,14 +102,19 @@ export default function ProfilePage() {
   }
 
   async function handleSignOut() {
+    setSignOutError('')
     const supabase = createClient()
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setSignOutError('Sign out failed — please try again.')
+      return
+    }
     router.push('/login')
     router.refresh()
   }
 
   return (
-    <div className="px-4 pt-12 pb-8">
+    <div className="px-4 pt-12 pb-24">
       <h1 className="text-xl font-semibold mb-6">Profile</h1>
 
       <div className="bg-white rounded-2xl p-5 flex items-center gap-4 mb-3">
@@ -106,14 +134,21 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-400">Loading…</p>
         )}
 
+        {partner.status === 'error' && (
+          <p className="text-sm text-red-400">Could not load partner status. Pull to refresh.</p>
+        )}
+
         {partner.status === 'none' && (
-          <button
-            onClick={handleGenerateInvite}
-            disabled={inviteLoading}
-            className="w-full text-sm font-medium text-indigo-700 bg-indigo-50 rounded-xl py-3 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-          >
-            {inviteLoading ? 'Generating link…' : 'Link with partner'}
-          </button>
+          <div>
+            <button
+              onClick={handleGenerateInvite}
+              disabled={inviteLoading}
+              className="w-full text-sm font-medium text-indigo-700 bg-indigo-50 rounded-xl py-3 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+            >
+              {inviteLoading ? 'Generating link…' : 'Link with partner'}
+            </button>
+            {inviteError && <p className="text-xs text-red-500 mt-2">{inviteError}</p>}
+          </div>
         )}
 
         {partner.status === 'pending' && (
@@ -137,29 +172,33 @@ export default function ProfilePage() {
             >
               Cancel invite
             </button>
+            {unlinkError && <p className="text-xs text-red-500">{unlinkError}</p>}
           </div>
         )}
 
         {partner.status === 'accepted' && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                <span className="text-sm font-semibold text-indigo-700">
-                  {partner.partnerName.charAt(0).toUpperCase()}
-                </span>
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-indigo-700">
+                    {partner.partnerName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{partner.partnerName}</p>
+                  <p className="text-xs text-gray-400">Linked</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">{partner.partnerName}</p>
-                <p className="text-xs text-gray-400">Linked</p>
-              </div>
+              <button
+                onClick={handleUnlink}
+                disabled={unlinkLoading}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 ml-3"
+              >
+                {unlinkLoading ? 'Unlinking…' : 'Unlink'}
+              </button>
             </div>
-            <button
-              onClick={handleUnlink}
-              disabled={unlinkLoading}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-            >
-              {unlinkLoading ? 'Unlinking…' : 'Unlink'}
-            </button>
+            {unlinkError && <p className="text-xs text-red-500 mt-2">{unlinkError}</p>}
           </div>
         )}
       </div>
@@ -175,6 +214,7 @@ export default function ProfilePage() {
         </svg>
         Sign out
       </button>
+      {signOutError && <p className="text-xs text-red-500 mt-2 text-center">{signOutError}</p>}
     </div>
   )
 }
